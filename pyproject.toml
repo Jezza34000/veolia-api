@@ -104,7 +104,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "veolia_api"
-version = "1.2.4"
+version = "1.2.5"
 description = "Python wrapper for Veolia API"
 authors = ["Jezza34000 <info@mail.com>"]
 readme = "README.md"
