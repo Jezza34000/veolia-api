@@ -22,6 +22,8 @@ LOGIN_IDENTIFIER_ENDPOINT = "/u/login/identifier"
 LOGIN_PASSWORD_ENDPOINT = "/u/login/password"
 MFA_DETECT_BROWSER_CAPABILITIES_ENDPOINT = "/u/mfa-detect-browser-capabilities"
 MFA_WEBAUTHN_PLATFORM_ENROLLMENT_ENDPOINT = "/u/mfa-webauthn-platform-enrollment"
+MFA_WEBAUTHN_PLATFORM_CHALLENGE_ENDPOINT = "/u/mfa-webauthn-platform-challenge"
+MFA_WEBAUTHN_PLATFORM_ENROL_ERR_ENDPOINT = "/u/mfa-webauthn-platform-error-enrollment"
 
 TYPE_FRONT = "WEB_ORDINATEUR"
 
