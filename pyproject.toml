@@ -10,7 +10,7 @@ keep = []
 ignore-words-list = "aaa"
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 exclude = ["setup.py", "usage_example.py"]
 
 [tool.ruff.lint]
@@ -97,27 +97,6 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
-[build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
-
-[tool.poetry]
-name = "veolia_api"
-version = "1.2.5"
-description = "Python wrapper for Veolia API"
-authors = ["Jezza34000 <info@mail.com>"]
-readme = "README.md"
-homepage = "https://github.com/Jezza34000/veolia-api"
-license = "MIT"
-
-[tool.poetry.dependencies]
-python = ">=3.12"
-aiohttp = "^3.9.4"
-
-[tool.poetry.dev-dependencies]
-pre-commit = "^4.0.1"
-black = "^24.10.0"
-ruff = "^0.7.4"
 
 [tool.bumpver]
 current_version = "1.2.5"
@@ -133,16 +112,41 @@ push = true
 
 [tool.bumpver.file_patterns]
 "pyproject.toml" = [
-    'current_version = "{version}"',
+    '^version = "{version}"',
+    '^current_version = "{version}"',
 ]
-"setup.py" = [
-    "{version}",
-    "{pep440_version}",
+"veolia_api/__init__.py" = [
+    '^__version__ = "{version}"',
 ]
-"README.md" = [
-    "{version}",
-    "{pep440_version}",
+
+[build-system]
+requires = ["poetry-core>=2.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "veolia_api"
+version = "1.2.5"
+description = "Client API for eau.veolia.fr"
+authors = ["Jezza34000 <info@mail.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/Jezza34000/veolia-api"
+repository = "https://github.com/Jezza34000/veolia-api"
+keywords = ["python", "veolia"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
 ]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+aiohttp = ">=3.11.11,<4.0.0"
+
+[tool.poetry.group.dev.dependencies]
+pre-commit = "^4.0.1"
+black = "^24.10.0"
+ruff = "^0.8.1"
 
 [tool.tox]
 envlist = ["pre-commit"]

@@ -16,25 +16,10 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.13"
 
       - name: Install Poetry
         run: pip install --no-input poetry
-
-      - name: Bump Poetry version
-        run: |
-          tag=${{ github.event.release.tag_name }}
-          version_number=${tag#?}
-          poetry version $version_number
-
-      - name: Commit changes
-        uses: EndBug/add-and-commit@v9
-        with:
-          message: "Bump version to ${{ github.event.release.tag_name }}"
-          add: "pyproject.toml"
-
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and publish to PyPi
         env:
