@@ -23,31 +23,26 @@ pip install veolia-api
 """Example of usage of the Veolia API"""
 
 import asyncio
-import logging
+from datetime import date
+
+import aiohttp
 
 from veolia_api.veolia_api import VeoliaAPI
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 async def main() -> None:
     """Main function."""
-    # Create an instance of the VeoliaAPI class
-    api = VeoliaAPI("username", "password")
 
-    try:
-        # Fetch data for November 2024
-        await api.fetch_all_data(2024, 11)
+    async with aiohttp.ClientSession() as session:
+        client_api = VeoliaAPI("email", "password", session)
+
+        # e.g Fetch data from 2025-1 to 2025-9
+        await client_api.fetch_all_data(date(2025, 1, 1), date(2025, 9, 1))
 
         # Display fetched data
-        print(api.account_data.daily_consumption)
-        print(api.account_data.monthly_consumption)
-        print(api.account_data.alert_settings.daily_enabled)
-
-    except Exception as e:
-        logging.error("An error occurred: %s", e)
-    finally:
-        await api.close()
+        print(client_api.account_data.daily_consumption)
+        print(client_api.account_data.monthly_consumption)
+        print(client_api.account_data.alert_settings.daily_enabled)
 
 
 if __name__ == "__main__":
