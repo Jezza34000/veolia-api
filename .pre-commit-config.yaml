@@ -34,6 +34,8 @@ repos:
     rev: v0.13.0
     hooks:
     -   id: ruff
+        args:
+          - --fix
 
 -   repo: https://github.com/gitleaks/gitleaks
     rev: v8.28.0

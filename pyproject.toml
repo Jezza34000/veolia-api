@@ -82,7 +82,6 @@ ignore = [
     "D205", # docstring style
     "D415", # docstring style
     "D212", # D212/D213 are incompatible, using D213 => multi-line-summary-second-line
-    "ANN101", # missing-type-self. This rule make nosense and cause headache
     "EM101", # counter-productive : creates more lines and decreases readability
     "EM102", # counter-productive : creates more lines and decreases readability
     "S105", # Wrong possible hardcoded password assigned
