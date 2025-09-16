@@ -31,6 +31,9 @@ TYPE_FRONT = "WEB_ORDINATEUR"
 GET = "GET"
 POST = "POST"
 
+# Session
+TIMEOUT = 15
+
 # API Connection flow
 API_CONNECTION_FLOW = {
     AUTHORIZE_ENDPOINT: {

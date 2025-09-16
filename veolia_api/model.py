@@ -45,3 +45,4 @@ class VeoliaAccountData:
     monthly_consumption: list[dict] = None
     daily_consumption: list[dict] = None
     alert_settings: AlertSettings = None
+    billing_plan: dict | None = None

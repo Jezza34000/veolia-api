@@ -1,12 +1,16 @@
 """Veolia API client"""
 
+import asyncio
 import base64
 import hashlib
+import itertools
 import logging
 import os
 import re
-from datetime import datetime, timedelta
+from collections.abc import Iterator
+from datetime import date, datetime, timedelta
 from http import HTTPStatus
+from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import aiohttp
@@ -31,10 +35,13 @@ from .constants import (
     CALLBACK_ENDPOINT,
     CLIENT_ID,
     CODE_CHALLENGE_METHODE,
+    GET,
     LOGIN_IDENTIFIER_ENDPOINT,
     LOGIN_PASSWORD_ENDPOINT,
     LOGIN_URL,
     OAUTH_TOKEN,
+    POST,
+    TIMEOUT,
     TYPE_FRONT,
     ConsumptionType,
 )
@@ -44,14 +51,19 @@ from .model import AlertSettings, VeoliaAccountData
 class VeoliaAPI:
     """Veolia API client"""
 
-    def __init__(self, username: str, password: str) -> None:
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        session: aiohttp.ClientSession | None = None,
+    ) -> None:
         """Initialize the Veolia API client"""
         self.username = username
         self.password = password
         self.account_data = VeoliaAccountData()
-        self.session = aiohttp.ClientSession()
         self.logger = logging.getLogger(self.__class__.__name__)
         self.api_flow = API_CONNECTION_FLOW
+        self.session = session or aiohttp.ClientSession(timeout=TIMEOUT)
 
     @staticmethod
     def _base64_url_encode(data: bytes) -> str:
@@ -103,11 +115,11 @@ class VeoliaAPI:
             safe_params,
         )
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3",
+            "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36",
             "Accept": "*/*",
         }
 
-        if method == "GET":
+        if method == GET:
             async with self.session.get(
                 url,
                 headers=headers,
@@ -119,7 +131,7 @@ class VeoliaAPI:
                     response.status,
                 )
                 return response
-        elif method == "POST":
+        elif method == POST:
             headers["Content-Type"] = "application/x-www-form-urlencoded"
             headers["Cache-Control"] = "no-cache"
             async with self.session.post(
@@ -299,7 +311,7 @@ class VeoliaAPI:
         """Get the account data"""
         await self.check_token()
 
-        self.logger.debug("Getting user & billing data...")
+        self.logger.debug("Fetching user & billing data...")
         headers = {"Authorization": f"Bearer {self.account_data.access_token}"}
         async with self.session.get(
             url=f"{BACKEND_ISTEFR}/espace-client?type-front={TYPE_FRONT}",
@@ -337,7 +349,7 @@ class VeoliaAPI:
                 or not self.account_data.numero_compteur
             ):
                 raise VeoliaAPIResponseError("Some user data not found in the response")
-            self.logger.debug("OK - User data received")
+            self.logger.debug("OK - Fetch done for user & billing data")
 
         # Facturation request
         async with self.session.get(
@@ -368,11 +380,11 @@ class VeoliaAPI:
         data_type: ConsumptionType,
         year: int,
         month: int | None = None,
-    ) -> dict:
+    ) -> list[dict[str, Any]]:
         """Get the water consumption data"""
         await self.check_token()
 
-        self.logger.debug("Getting consumption data...")
+        self.logger.debug("Fetching consumption data for %s-%s", year, month)
         headers = {"Authorization": f"Bearer {self.account_data.access_token}"}
         params = {
             "annee": year,
@@ -397,7 +409,7 @@ class VeoliaAPI:
                 raise VeoliaAPIGetDataError(
                     f"call to= consommations failed with http status= {response.status}",
                 )
-            self.logger.debug("OK - Consumption data received")
+            self.logger.debug("OK - Fetch done for %s-%s", year, month)
             return await response.json()
 
     async def get_alerts_settings(self) -> AlertSettings:
@@ -426,7 +438,7 @@ class VeoliaAPI:
         """
         await self.check_token()
 
-        self.logger.debug("Getting alerts settings...")
+        self.logger.debug("Fetching alerts settings...")
         headers = {"Authorization": f"Bearer {self.account_data.access_token}"}
         params = {
             "abo_id": self.account_data.id_abonnement,
@@ -456,7 +468,7 @@ class VeoliaAPI:
                 monthly_alert = seuils.get("mensuel", None)
 
                 self.logger.debug("Alerts settings: %s", data)
-                self.logger.debug("OK - Alerts settings received")
+                self.logger.debug("OK - Fetch done for alerts settings")
 
                 return AlertSettings(
                     daily_enabled=bool(daily_alert),
@@ -516,21 +528,48 @@ class VeoliaAPI:
             self.logger.error(error_message)
             return {}
 
-    async def fetch_all_data(self, year: int, month: int) -> None:
-        """Fetch all consumption data and insert it into the dataclass"""
-        self.logger.info("Fetching all data...")
-        self.account_data.monthly_consumption = await self.get_consumption_data(
-            ConsumptionType.YEARLY,
-            year,
+    @staticmethod
+    def _iter_months(start_date: date, end_date: date) -> Iterator[tuple[int, int]]:
+        """Yield (year, month) pairs covering [start_date, end_date]."""
+        y, m = start_date.year, start_date.month
+        while (y < end_date.year) or (y == end_date.year and m <= end_date.month):
+            yield y, m
+            if m == 12:  # noqa: PLR2004
+                y, m = y + 1, 1
+            else:
+                m += 1
+
+    async def fetch_all_data(self, start_date: date, end_date: date) -> None:
+        """Fetch consumption for a date range and store in the dataclass.
+
+        - monthly_consumption: list of yearly payloads for each covered year
+        - daily_consumption: list of monthly payloads for each covered (year, month)
+        """
+        self.logger.info(
+            "Fetching all data for range %s -> %s...",
+            start_date,
+            end_date,
         )
-        self.account_data.daily_consumption = await self.get_consumption_data(
-            ConsumptionType.MONTHLY,
-            year,
-            month,
+        years = list(range(start_date.year, end_date.year + 1))
+        monthly_tasks = [
+            self.get_consumption_data(ConsumptionType.YEARLY, y) for y in years
+        ]
+        daily_tasks = [
+            self.get_consumption_data(ConsumptionType.MONTHLY, y, m)
+            for (y, m) in self._iter_months(start_date, end_date)
+        ]
+        monthly_results = await asyncio.gather(*monthly_tasks) if monthly_tasks else []
+        daily_results = await asyncio.gather(*daily_tasks) if daily_tasks else []
+        self.account_data.monthly_consumption = list(
+            itertools.chain.from_iterable(monthly_results),
         )
+        self.account_data.daily_consumption = list(
+            itertools.chain.from_iterable(daily_results),
+        )
+        # Fetch other data with no historical
         self.account_data.billing_plan = await self.get_mensualisation_plan()
         self.account_data.alert_settings = await self.get_alerts_settings()
-        self.logger.info("OK - All data fetched")
+        self.logger.info("OK - All data fetched for range")
 
     async def set_alerts_settings(self, alert_settings: AlertSettings) -> bool:
         """Set the consumption alerts"""
