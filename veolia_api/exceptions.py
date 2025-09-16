@@ -43,3 +43,7 @@ class VeoliaAPISetDataError(VeoliaAPIError):
 
 class VeoliaAPIUnknownError(VeoliaAPIError):
     """Custom exception class for Veolia API unknown errors"""
+
+
+class VeoliaAPIRateLimitError(VeoliaAPIError):
+    """Exception for HTTP 429 Too Many Requests."""
