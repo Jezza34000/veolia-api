@@ -7,7 +7,7 @@ import itertools
 import logging
 import os
 import re
-from collections.abc import Iterator
+from collections.abc import Coroutine, Iterator
 from datetime import date, datetime, timedelta
 from http import HTTPStatus
 from typing import Any
@@ -35,6 +35,7 @@ from .constants import (
     CALLBACK_ENDPOINT,
     CLIENT_ID,
     CODE_CHALLENGE_METHODE,
+    CONCURRENTS_TASKS,
     GET,
     LOGIN_IDENTIFIER_ENDPOINT,
     LOGIN_PASSWORD_ENDPOINT,
@@ -384,7 +385,6 @@ class VeoliaAPI:
         """Get the water consumption data"""
         await self.check_token()
 
-        self.logger.debug("Fetching consumption data for %s-%s", year, month)
         headers = {"Authorization": f"Bearer {self.account_data.access_token}"}
         params = {
             "annee": year,
@@ -395,8 +395,14 @@ class VeoliaAPI:
         if data_type == ConsumptionType.MONTHLY and month is not None:
             params["mois"] = month
             endpoint = "journalieres"
+            self.logger.debug(
+                "Fetching daily consumption data for : %s-%s",
+                year,
+                month,
+            )
         elif data_type == ConsumptionType.YEARLY:
             endpoint = "mensuelles"
+            self.logger.debug("Fetching monthly consumption data for year : %s", year)
         else:
             raise ValueError("Invalid data type or missing month for monthly data")
 
@@ -550,16 +556,28 @@ class VeoliaAPI:
             start_date,
             end_date,
         )
+        semaphore = asyncio.Semaphore(CONCURRENTS_TASKS)
+
+        async def sem_task(
+            task_coro: Coroutine[Any, Any, list[dict[str, Any]]],
+        ) -> list[dict[str, Any]]:
+            """Semaphore coro"""
+            async with semaphore:
+                return await task_coro
+
         years = list(range(start_date.year, end_date.year + 1))
         monthly_tasks = [
-            self.get_consumption_data(ConsumptionType.YEARLY, y) for y in years
+            sem_task(self.get_consumption_data(ConsumptionType.YEARLY, y))
+            for y in years
         ]
         daily_tasks = [
-            self.get_consumption_data(ConsumptionType.MONTHLY, y, m)
+            sem_task(self.get_consumption_data(ConsumptionType.MONTHLY, y, m))
             for (y, m) in self._iter_months(start_date, end_date)
         ]
+
         monthly_results = await asyncio.gather(*monthly_tasks) if monthly_tasks else []
         daily_results = await asyncio.gather(*daily_tasks) if daily_tasks else []
+
         self.account_data.monthly_consumption = list(
             itertools.chain.from_iterable(monthly_results),
         )
