@@ -32,17 +32,17 @@ class AlertSettings:
 class VeoliaAccountData:
     """Data for the Veolia integration."""
 
-    access_token: str = None
+    access_token: str | None = None
     token_expiration: float = 0
-    code: str = None
-    verifier: str = None
-    id_abonnement: str = None
-    numero_pds: str = None
-    contact_id: str = None
-    tiers_id: str = None
-    numero_compteur: str = None
-    date_debut_abonnement: str = None
-    monthly_consumption: list[dict] = None
-    daily_consumption: list[dict] = None
-    alert_settings: AlertSettings = None
+    code: str | None = None
+    verifier: str | None = None
+    id_abonnement: str | None = None
+    numero_pds: str | None = None
+    contact_id: str | None = None
+    tiers_id: str | None = None
+    numero_compteur: str | None = None
+    date_debut_abonnement: str | None = None
+    monthly_consumption: list[dict] | None = None
+    daily_consumption: list[dict] | None = None
+    alert_settings: AlertSettings | None = None
     billing_plan: dict | None = None
