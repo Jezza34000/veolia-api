@@ -113,7 +113,7 @@ class VeoliaAPI:
         wait=wait_exponential(multiplier=1, min=1, max=16),
         retry=retry_if_exception_type((aiohttp.ClientError, VeoliaAPIRateLimitError)),
     )
-    async def send_request(
+    async def _send_request(
         self,
         url: str,
         method: str,
@@ -169,7 +169,6 @@ class VeoliaAPI:
 
         response = await self.session.request(method.upper(), url, **kwargs)
         _LOGGER.debug("Received response with status code %s", response.status)
-
         if response.status == HTTPStatus.TOO_MANY_REQUESTS:
             _LOGGER.warning(
                 "Rate limit hit (HTTP 429) for %s %s, retrying...",
@@ -180,7 +179,7 @@ class VeoliaAPI:
 
         return response
 
-    async def execute_flow(self) -> None:
+    async def _execute_flow(self) -> None:
         """Execute the login flow"""
         next_url = AUTHORIZE_ENDPOINT
         state = None
@@ -199,7 +198,7 @@ class VeoliaAPI:
             if state:
                 full_url = f"{full_url}?state={state}"
 
-            response = await self.send_request(
+            response = await self._send_request(
                 url=full_url,
                 method=config.get("method", GET),
                 params=params,
@@ -295,9 +294,9 @@ class VeoliaAPI:
         if not re.match(email_regex, self.username):
             raise VeoliaAPIInvalidCredentialsError("Invalid email format")
         _LOGGER.debug("Starting login process...")
-        await self.execute_flow()
-        await self.get_access_token()
-        await self.get_client_data()
+        await self._execute_flow()
+        await self._get_access_token()
+        await self._get_client_data()
 
         # Check if login was successful
         if (
@@ -313,7 +312,7 @@ class VeoliaAPI:
             return True
         return False
 
-    async def check_token(self) -> None:
+    async def _check_token(self) -> None:
         """Check if the access token is still valid"""
         if (
             not self.account_data.access_token
@@ -322,7 +321,7 @@ class VeoliaAPI:
             _LOGGER.debug("No access token or token expired")
             await self.login()
 
-    async def get_access_token(self) -> None:
+    async def _get_access_token(self) -> None:
         """Request the access token"""
         token_url = f"{LOGIN_URL}{OAUTH_TOKEN}"
         _LOGGER.debug("Requesting access token...")
@@ -334,7 +333,7 @@ class VeoliaAPI:
             "redirect_uri": f"{BASE_URL}{CALLBACK_ENDPOINT}",
         }
 
-        response = await self.send_request(
+        response = await self._send_request(
             url=token_url,
             method=POST,
             json_data=json_payload,
@@ -352,13 +351,11 @@ class VeoliaAPI:
         ).timestamp()
         _LOGGER.debug("OK - Access token retrieved")
 
-    async def get_client_data(self) -> None:
+    async def _get_client_data(self) -> None:
         """Get the account data"""
-        await self.check_token()
-
         _LOGGER.debug("Fetching user & billing data...")
         url = f"{BACKEND_ISTEFR}/espace-client?type-front={TYPE_FRONT}"
-        response = await self.send_request(url=url, method=GET)
+        response = await self._send_request(url=url, method=GET)
         if response.status != HTTPStatus.OK:
             raise VeoliaAPIGetDataError(
                 f"call to= espace-client failed with http status= {response.status}",
@@ -395,7 +392,7 @@ class VeoliaAPI:
 
         # Facturation request
         url_facturation = f"{BACKEND_ISTEFR}/abonnements/{self.account_data.id_abonnement}/facturation"
-        response_facturation = await self.send_request(url=url_facturation, method=GET)
+        response_facturation = await self._send_request(url=url_facturation, method=GET)
         if response_facturation.status != HTTPStatus.OK:
             raise VeoliaAPIGetDataError(
                 f"call to= facturation failed with http status= {response_facturation.status}",
@@ -415,15 +412,13 @@ class VeoliaAPI:
             )
         _LOGGER.debug("OK - Billing data received")
 
-    async def get_consumption_data(
+    async def _get_consumption_data(
         self,
         data_type: ConsumptionType,
         year: int,
         month: int | None = None,
     ) -> list[dict[str, Any]]:
         """Get the water consumption data"""
-        await self.check_token()
-
         date_debut = datetime.strptime(
             self.account_data.date_debut_abonnement,
             "%Y-%m-%d",
@@ -464,7 +459,7 @@ class VeoliaAPI:
 
         url = f"{BACKEND_ISTEFR}/consommations/{self.account_data.id_abonnement}/{endpoint}"
 
-        response = await self.send_request(
+        response = await self._send_request(
             url=url,
             method=GET,
             params=params,
@@ -501,14 +496,14 @@ class VeoliaAPI:
             }
         }
         """
-        await self.check_token()
+        await self._check_token()
 
         _LOGGER.debug("Fetching alerts settings...")
         params = {
             "abo_id": self.account_data.id_abonnement,
         }
         url = f"{BACKEND_ISTEFR}/alertes/{self.account_data.numero_pds}"
-        response = await self.send_request(
+        response = await self._send_request(
             url=url,
             method=GET,
             params=params,
@@ -567,14 +562,12 @@ class VeoliaAPI:
             f"call to= alertes failed with http status= {response.status}",
         )
 
-    async def get_mensualisation_plan(self) -> dict:
+    async def _get_mensualisation_plan(self) -> dict:
         """Get the plan de mensualisation for the given abonnement ID"""
-        await self.check_token()
-
         _LOGGER.debug("Getting mensualisation plan...")
         url = f"{BACKEND_ISTEFR}/abonnements/{self.account_data.id_abonnement}/facturation/mensualisation/plan"
 
-        response = await self.send_request(url=url, method=GET)
+        response = await self._send_request(url=url, method=GET)
         _LOGGER.debug("Received response with status code %s", response.status)
 
         if response.status == HTTPStatus.NO_CONTENT:
@@ -613,9 +606,11 @@ class VeoliaAPI:
             start_date,
             end_date,
         )
+        await self._check_token()
+
         semaphore = asyncio.Semaphore(CONCURRENTS_TASKS)
 
-        async def sem_task(
+        async def _sem_task(
             task_coro: Coroutine[Any, Any, list[dict[str, Any]]],
         ) -> list[dict[str, Any]]:
             """Semaphore coro"""
@@ -624,11 +619,11 @@ class VeoliaAPI:
 
         years = list(range(start_date.year, end_date.year + 1))
         monthly_tasks = [
-            sem_task(self.get_consumption_data(ConsumptionType.YEARLY, y))
+            _sem_task(self._get_consumption_data(ConsumptionType.YEARLY, y))
             for y in years
         ]
         daily_tasks = [
-            sem_task(self.get_consumption_data(ConsumptionType.MONTHLY, y, m))
+            _sem_task(self._get_consumption_data(ConsumptionType.MONTHLY, y, m))
             for (y, m) in self._iter_months(start_date, end_date)
         ]
 
@@ -642,13 +637,13 @@ class VeoliaAPI:
             itertools.chain.from_iterable(daily_results),
         )
         # Fetch other data with no historical
-        self.account_data.billing_plan = await self.get_mensualisation_plan()
+        self.account_data.billing_plan = await self._get_mensualisation_plan()
         self.account_data.alert_settings = await self.get_alerts_settings()
         _LOGGER.info("OK - All data fetched for range")
 
     async def set_alerts_settings(self, alert_settings: AlertSettings) -> bool:
         """Set the consumption alerts"""
-        await self.check_token()
+        await self._check_token()
 
         _LOGGER.debug("Setting alerts params...")
         url = f"{BACKEND_ISTEFR}/alertes/{self.account_data.numero_pds}"
@@ -688,7 +683,7 @@ class VeoliaAPI:
 
         _LOGGER.debug("Alert settings payload: %s", payload)
 
-        response = await self.send_request(url=url, method=POST, json_data=payload)
+        response = await self._send_request(url=url, method=POST, json_data=payload)
         _LOGGER.debug("Received response with status code %s ", response.status)
 
         if response.status != HTTPStatus.NO_CONTENT:
