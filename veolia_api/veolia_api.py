@@ -464,7 +464,6 @@ class VeoliaAPI:
             method=GET,
             params=params,
         )
-        _LOGGER.debug("Received response with status code %s", response.status)
         if response.status != HTTPStatus.OK:
             raise VeoliaAPIGetDataError(
                 f"call to= consommations failed with http status= {response.status}",
@@ -508,7 +507,6 @@ class VeoliaAPI:
             method=GET,
             params=params,
         )
-        _LOGGER.debug("Received response with status code %s", response.status)
 
         if response.status == HTTPStatus.NO_CONTENT:
             _LOGGER.info("No alerts settings found")
@@ -568,7 +566,6 @@ class VeoliaAPI:
         url = f"{BACKEND_ISTEFR}/abonnements/{self.account_data.id_abonnement}/facturation/mensualisation/plan"
 
         response = await self._send_request(url=url, method=GET)
-        _LOGGER.debug("Received response with status code %s", response.status)
 
         if response.status == HTTPStatus.NO_CONTENT:
             _LOGGER.info("No mensualisation plan found")
@@ -684,8 +681,6 @@ class VeoliaAPI:
         _LOGGER.debug("Alert settings payload: %s", payload)
 
         response = await self._send_request(url=url, method=POST, json_data=payload)
-        _LOGGER.debug("Received response with status code %s ", response.status)
-
         if response.status != HTTPStatus.NO_CONTENT:
             raise VeoliaAPISetDataError(
                 f"Failed to set alerts settings with status code {response.status}, maybe alert are not supported on this account ?",
