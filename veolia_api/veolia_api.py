@@ -217,7 +217,9 @@ class VeoliaAPI:
         token_data = await response.json(content_type="json")
 
         if response.status != HTTPStatus.OK:
-            raise VeoliaAPITokenError("Token API call error: " + token_data.get("message"))
+            raise VeoliaAPITokenError(
+                "Token API call error: " + token_data.get("message"),
+            )
 
         authentication_result = token_data.get("AuthenticationResult")
         if not authentication_result:
