@@ -4,4 +4,4 @@ from .veolia_api import VeoliaAPI
 
 __all__ = ["VeoliaAPI"]
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
