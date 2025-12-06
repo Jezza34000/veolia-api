@@ -13,6 +13,18 @@ Python wrapper for using Veolia API : https://www.eau.veolia.fr/
 
 ## Installation
 
+First of all, you need to install [devbox](https://www.jetify.com/docs/devbox/installing-devbox) **if you don't have a python environment**
+
+Once the previous step is done, simply run
+
+```bash
+devbox shell
+```
+
+That's it !
+
+If you already have a python environment just run
+
 ```bash
 pip install veolia-api
 ```
@@ -48,6 +60,13 @@ async def main() -> None:
 if __name__ == "__main__":
     asyncio.run(main())
 
+```
+
+You can use usage_example.py
+
+```bash
+cp usage_example.py.dist usage_example.py
+python usage_example.py
 ```
 
 ## Credits
