@@ -5,13 +5,12 @@ import base64
 import hashlib
 import itertools
 import logging
-import os
 import re
 from collections.abc import Coroutine, Iterator
 from datetime import UTC, date, datetime, timedelta
 from http import HTTPStatus
 from typing import Any
-from urllib.parse import parse_qs, urlencode, urlparse
+from urllib.parse import urlencode
 
 import aiohttp
 from tenacity import (
@@ -22,32 +21,23 @@ from tenacity import (
 )
 
 from veolia_api.exceptions import (
-    VeoliaAPIAuthCodeNotFoundError,
-    VeoliaAPIAuthError,
-    VeoliaAPIFlowError,
     VeoliaAPIGetDataError,
     VeoliaAPIInvalidCredentialsError,
     VeoliaAPIRateLimitError,
     VeoliaAPIResponseError,
     VeoliaAPISetDataError,
     VeoliaAPITokenError,
-    VeoliaAPIUnexpectedResponseError,
 )
 
 from .constants import (
-    API_CONNECTION_FLOW,
-    AUTHORIZE_ENDPOINT,
     BACKEND_ISTEFR,
     BASE_URL,
     CALLBACK_ENDPOINT,
-    CLIENT_ID,
-    CODE_CHALLENGE_METHODE,
     CONCURRENTS_TASKS,
     GET,
-    LOGIN_IDENTIFIER_ENDPOINT,
-    LOGIN_PASSWORD_ENDPOINT,
+    LOGIN_CLIENT_ID,
     LOGIN_URL,
-    OAUTH_TOKEN,
+    NEW_LOGIN_URL,
     POST,
     TIMEOUT,
     TYPE_FRONT,
@@ -71,7 +61,6 @@ class VeoliaAPI:
         self.username = username
         self.password = password
         self.account_data = VeoliaAccountData()
-        self.api_flow = API_CONNECTION_FLOW
         self.session = session or aiohttp.ClientSession(timeout=TIMEOUT)
 
     @staticmethod
@@ -83,29 +72,6 @@ class VeoliaAPI:
     def _sha256(data: bytes) -> bytes:
         """Calculate the SHA-256 hash of the data"""
         return hashlib.sha256(data).digest()
-
-    def _get_authorize_params(self, state: str | None) -> dict:
-        """Get the parameters for the /authorize API call"""
-        state = self._base64_url_encode(os.urandom(32))
-        nonce = self._base64_url_encode(os.urandom(32))
-        verifier = self._base64_url_encode(os.urandom(32))
-        challenge = self._base64_url_encode(self._sha256(verifier.encode("utf-8")))
-        self.account_data.verifier = verifier
-        return {
-            "audience": BACKEND_ISTEFR,
-            "redirect_uri": f"{BASE_URL}{CALLBACK_ENDPOINT}",
-            "client_id": CLIENT_ID,
-            "scope": "openid profile email offline_access",
-            "response_type": "code",
-            "state": state,
-            "nonce": nonce,
-            "response_mode": "query",
-            "code_challenge": challenge,
-            "code_challenge_method": CODE_CHALLENGE_METHODE,
-            "auth0Client": self._base64_url_encode(
-                b'{"name": "auth0-react", "version": "1.11.0"}',
-            ),
-        }
 
     @retry(
         reraise=True,
@@ -119,6 +85,7 @@ class VeoliaAPI:
         method: str,
         params: dict | None = None,
         json_data: dict | None = None,
+        is_login: bool = False,
     ) -> aiohttp.ClientResponse:
         """Make an HTTP request with support for params, headers and JSON body."""
         safe_params = {**params} if params else {}
@@ -158,6 +125,12 @@ class VeoliaAPI:
             req_headers["Content-Type"] = "application/json"
             kwargs["json"] = json_data
 
+        if is_login is True:
+            req_headers["Content-Type"] = "application/x-amz-json-1.1"
+            req_headers["x-amz-target"] = (
+                "AWSCognitoIdentityProviderService.InitiateAuth"
+            )
+
         elif method.upper() == POST and params:
             req_headers.update(
                 {
@@ -179,32 +152,6 @@ class VeoliaAPI:
 
         return response
 
-    async def _execute_flow(self) -> None:
-        """Execute the login flow"""
-        next_url = AUTHORIZE_ENDPOINT
-        state = None
-
-        while next_url:
-            config = self.api_flow.get(next_url, None)
-
-            if config is None:
-                raise VeoliaAPIFlowError(
-                    f"Flow error on URL : {next_url}",
-                )
-
-            full_url = self._get_full_url(next_url)
-            params = self._get_params(next_url, config, state)
-
-            if state:
-                full_url = f"{full_url}?state={state}"
-
-            response = await self._send_request(
-                url=full_url,
-                method=config.get("method", GET),
-                params=params,
-            )
-            next_url, state = self._handle_response(response, next_url, state, full_url)
-
     @staticmethod
     def _get_full_url(next_url: str) -> str:
         """Get the full URL for the next API call"""
@@ -213,76 +160,6 @@ class VeoliaAPI:
             if next_url != CALLBACK_ENDPOINT
             else f"{BASE_URL}{next_url}"
         )
-
-    def _get_params(
-        self,
-        next_url: str,
-        config: dict,
-        current_state: str | None,
-    ) -> dict:
-        """Get the parameters for the next API call"""
-        param_functions = {
-            AUTHORIZE_ENDPOINT: lambda state: self._get_authorize_params(state),
-            LOGIN_IDENTIFIER_ENDPOINT: lambda state: config["params"](
-                state,
-                self.username,
-            ),
-            LOGIN_PASSWORD_ENDPOINT: lambda state: config["params"](
-                state,
-                self.username,
-                self.password,
-            ),
-            CALLBACK_ENDPOINT: lambda state: config["params"](
-                state,
-                self.account_data.code,
-            ),
-        }
-        return param_functions.get(
-            next_url,
-            lambda state: config["params"](state) if config["params"] else {},
-        )(current_state)
-
-    def _handle_response(
-        self,
-        response: aiohttp.ClientResponse,
-        next_url: str,
-        state: str | None,
-        full_url: str,
-    ) -> tuple:
-        """Handle the response from the API call"""
-        if (
-            response.status == HTTPStatus.BAD_REQUEST
-            and next_url == LOGIN_PASSWORD_ENDPOINT
-        ):
-            raise VeoliaAPIAuthError("Invalid username or password")
-        if response.status != self.api_flow[next_url]["success_status"]:
-            raise VeoliaAPIFlowError(
-                f"Call to= {full_url} failed with status= {response.status}",
-            )
-
-        if response.status == HTTPStatus.FOUND:
-            redirect_url = urlparse(response.headers.get("Location"))
-            next_url = redirect_url.path
-            new_state = parse_qs(redirect_url.query).get("state")
-            if new_state:
-                state = new_state[0]
-
-            if next_url == CALLBACK_ENDPOINT:
-                self.account_data.code = parse_qs(redirect_url.query).get(
-                    "code",
-                    [None],
-                )[0]
-                if not self.account_data.code:
-                    raise VeoliaAPIAuthCodeNotFoundError("Authorization code not found")
-                _LOGGER.debug("Authorization code received")
-        elif response.status == HTTPStatus.OK and next_url == CALLBACK_ENDPOINT:
-            next_url = None
-        else:
-            raise VeoliaAPIUnexpectedResponseError(
-                f"Unexpected http status code: {response.status} at {full_url}",
-            )
-
-        return next_url, state
 
     async def login(self) -> bool:
         """Login to the Veolia API"""
@@ -294,7 +171,6 @@ class VeoliaAPI:
         if not re.match(email_regex, self.username):
             raise VeoliaAPIInvalidCredentialsError("Invalid email format")
         _LOGGER.debug("Starting login process...")
-        await self._execute_flow()
         await self._get_access_token()
         await self._get_client_data()
 
@@ -323,31 +199,39 @@ class VeoliaAPI:
 
     async def _get_access_token(self) -> None:
         """Request the access token"""
-        token_url = f"{LOGIN_URL}{OAUTH_TOKEN}"
+        token_url = f"{NEW_LOGIN_URL}"
         _LOGGER.debug("Requesting access token...")
         json_payload = {
-            "client_id": CLIENT_ID,
-            "grant_type": "authorization_code",
-            "code_verifier": self.account_data.verifier,
-            "code": self.account_data.code,
-            "redirect_uri": f"{BASE_URL}{CALLBACK_ENDPOINT}",
+            "ClientId": LOGIN_CLIENT_ID,
+            "AuthFlow": "USER_PASSWORD_AUTH",
+            "AuthParameters": {"USERNAME": self.username, "PASSWORD": self.password},
         }
 
         response = await self._send_request(
             url=token_url,
             method=POST,
             json_data=json_payload,
+            is_login=True,
         )
 
-        if response.status != HTTPStatus.OK:
-            raise VeoliaAPITokenError("Token API call error")
+        token_data = await response.json(content_type="json")
 
-        token_data = await response.json()
-        self.account_data.access_token = token_data.get("access_token")
+        if response.status != HTTPStatus.OK:
+            raise VeoliaAPITokenError(
+                "Token API call error: " + token_data.get("message"),
+            )
+
+        authentication_result = token_data.get("AuthenticationResult")
+        if not authentication_result:
+            raise VeoliaAPITokenError("Authentication failed")
+
+        self.account_data.access_token = authentication_result.get("AccessToken")
         if not self.account_data.access_token:
             raise VeoliaAPITokenError("Access token not found")
+
         self.account_data.token_expiration = (
-            datetime.now() + timedelta(seconds=token_data.get("expires_in", 0))
+            datetime.now()
+            + timedelta(seconds=authentication_result.get("ExpiresIn", 0))
         ).timestamp()
         _LOGGER.debug("OK - Access token retrieved")
 
