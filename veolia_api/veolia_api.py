@@ -216,6 +216,11 @@ class VeoliaAPI:
 
         token_data = await response.json(content_type="json")
 
+        _LOGGER.debug("Response status code")
+        _LOGGER.debug(str(response.status))
+        _LOGGER.debug("======== Response content ===========")
+        _LOGGER.debug(token_data)
+
         if response.status != HTTPStatus.OK:
             raise VeoliaAPITokenError(
                 "Token API call error: " + token_data.get("message"),

@@ -19,13 +19,13 @@ class AlertSettings:
     """
 
     daily_enabled: bool
-    daily_threshold: int
-    daily_notif_email: bool
-    daily_notif_sms: bool
+    daily_threshold: int | None
+    daily_notif_email: bool | None
+    daily_notif_sms: bool | None
     monthly_enabled: bool
-    monthly_threshold: int
-    monthly_notif_email: bool
-    monthly_notif_sms: bool
+    monthly_threshold: int | None
+    monthly_notif_email: bool | None
+    monthly_notif_sms: bool | None
 
 
 @dataclass
