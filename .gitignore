@@ -3,4 +3,3 @@
 .vscode
 /.pypirc
 veolia_api/__pycache__/
-usage_example.py
