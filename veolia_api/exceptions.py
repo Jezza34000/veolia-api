@@ -9,22 +9,6 @@ class VeoliaAPIInvalidCredentialsError(VeoliaAPIError):
     """Custom exception class for Veolia API missing credentials"""
 
 
-class VeoliaAPIAuthError(VeoliaAPIError):
-    """Custom exception class for Veolia API authentication errors"""
-
-
-class VeoliaAPIFlowError(VeoliaAPIError):
-    """Custom exception class for Veolia API connection errors"""
-
-
-class VeoliaAPIAuthCodeNotFoundError(VeoliaAPIError):
-    """Custom exception class for Veolia API parsing errors"""
-
-
-class VeoliaAPIUnexpectedResponseError(VeoliaAPIError):
-    """Custom exception class for Veolia API connection errors"""
-
-
 class VeoliaAPITokenError(VeoliaAPIError):
     """Custom exception class for Veolia API rate limit errors"""
 

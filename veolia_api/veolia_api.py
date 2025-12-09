@@ -1,8 +1,6 @@
 """Veolia API client"""
 
 import asyncio
-import base64
-import hashlib
 import itertools
 import logging
 import re
@@ -31,13 +29,10 @@ from veolia_api.exceptions import (
 
 from .constants import (
     BACKEND_ISTEFR,
-    BASE_URL,
-    CALLBACK_ENDPOINT,
     CONCURRENTS_TASKS,
     GET,
     LOGIN_CLIENT_ID,
     LOGIN_URL,
-    NEW_LOGIN_URL,
     POST,
     TIMEOUT,
     TYPE_FRONT,
@@ -62,16 +57,6 @@ class VeoliaAPI:
         self.password = password
         self.account_data = VeoliaAccountData()
         self.session = session or aiohttp.ClientSession(timeout=TIMEOUT)
-
-    @staticmethod
-    def _base64_url_encode(data: bytes) -> str:
-        """Base64 URL encode the data"""
-        return base64.urlsafe_b64encode(data).rstrip(b"=").decode("utf-8")
-
-    @staticmethod
-    def _sha256(data: bytes) -> bytes:
-        """Calculate the SHA-256 hash of the data"""
-        return hashlib.sha256(data).digest()
 
     @retry(
         reraise=True,
@@ -125,7 +110,7 @@ class VeoliaAPI:
             req_headers["Content-Type"] = "application/json"
             kwargs["json"] = json_data
 
-        if is_login is True:
+        if is_login:
             req_headers["Content-Type"] = "application/x-amz-json-1.1"
             req_headers["x-amz-target"] = (
                 "AWSCognitoIdentityProviderService.InitiateAuth"
@@ -151,15 +136,6 @@ class VeoliaAPI:
             raise VeoliaAPIRateLimitError("HTTP 429 Too Many Requests")
 
         return response
-
-    @staticmethod
-    def _get_full_url(next_url: str) -> str:
-        """Get the full URL for the next API call"""
-        return (
-            f"{LOGIN_URL}{next_url}"
-            if next_url != CALLBACK_ENDPOINT
-            else f"{BASE_URL}{next_url}"
-        )
 
     async def login(self) -> bool:
         """Login to the Veolia API"""
@@ -199,7 +175,7 @@ class VeoliaAPI:
 
     async def _get_access_token(self) -> None:
         """Request the access token"""
-        token_url = f"{NEW_LOGIN_URL}"
+        token_url = f"{LOGIN_URL}"
         _LOGGER.debug("Requesting access token...")
         json_payload = {
             "ClientId": LOGIN_CLIENT_ID,
