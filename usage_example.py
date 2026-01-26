@@ -8,7 +8,6 @@ import aiohttp
 
 from veolia_api.veolia_api import VeoliaAPI
 
-
 logging.basicConfig(
     level=logging.DEBUG,
     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
