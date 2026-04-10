@@ -56,12 +56,7 @@ class VeoliaAPI:
         """Initialize the Veolia API client"""
         self.username = username
         self.password = password
-        portal = (
-            (portal_url or next(iter(VEOLIA_PORTAL_CLIENTS)))
-            .rstrip("/")
-            .removeprefix("https://")
-            .removeprefix("http://")
-        )
+        portal = portal_url or next(iter(VEOLIA_PORTAL_CLIENTS))
         if portal not in VEOLIA_PORTAL_CLIENTS:
             raise ValueError(
                 f"Unknown Veolia portal: {portal!r}. Add it to VEOLIA_PORTAL_CLIENTS in portals.py",
