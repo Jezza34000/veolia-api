@@ -3,3 +3,5 @@
 .vscode
 /.pypirc
 veolia_api/__pycache__/
+__pycache__
+.pytest*

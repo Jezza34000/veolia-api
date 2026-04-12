@@ -2,12 +2,14 @@
 
 from enum import Enum
 
+from .portals import VEOLIA_PORTAL_CLIENTS
+
 # URLS
 LOGIN_URL = "https://cognito-idp.eu-west-3.amazonaws.com"
 BACKEND_ISTEFR = "https://prd-ael-sirius-backend.istefr.fr"
 
-# AUTH
-LOGIN_CLIENT_ID = "3kghade1fg54739kj8pkbova8j"
+# Backward-compatibility alias / by default 1st entry
+LOGIN_CLIENT_ID = next(iter(VEOLIA_PORTAL_CLIENTS.values()))
 
 # API Flow Endpoints
 CALLBACK_ENDPOINT = "/callback"
