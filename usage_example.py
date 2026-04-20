@@ -6,7 +6,6 @@ from datetime import date
 
 import aiohttp
 
-from veolia_api.portals import VEOLIA_PORTAL_CLIENTS
 from veolia_api.veolia_api import VeoliaAPI
 
 logging.basicConfig(
@@ -19,15 +18,10 @@ logger = logging.getLogger("VeoliaExample")
 async def main() -> None:
     """Main function with logging."""
     logger.info("Starting Veolia API example script")
-    logger.info("Available portals: %s", list(VEOLIA_PORTAL_CLIENTS))
-
-    # Pick your portal — defaults to the first entry if omitted
-    # portal_url = "eau.veolia.fr"
-    portal_url = None
 
     async with aiohttp.ClientSession() as session:
         logger.debug("Creating VeoliaAPI client")
-        client_api = VeoliaAPI("email", "password", session, portal_url=portal_url)
+        client_api = VeoliaAPI("email", "password", session)
 
         start_date = date(2025, 1, 1)
         end_date = date(2025, 9, 1)
