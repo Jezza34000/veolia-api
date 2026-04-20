@@ -9,7 +9,15 @@
     <a href="https://github.com/Jezza34000/veolia-api/actions"><img src="https://github.com/Jezza34000/veolia-api/workflows/CI/badge.svg"/></a>
 </p>
 
-Python wrapper for using Veolia API : https://www.eau.veolia.fr/
+Async Python client for the Veolia water portal API (`eau.veolia.fr`).
+
+## Table of contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [Credits](#credits)
+- [License](#license)
 
 ## Installation
 
@@ -19,6 +27,8 @@ Once the previous step is done, simply run
 
 ```bash
 devbox shell
+cp .env.example .env   # fill in your credentials
+python usage_example.py
 ```
 
 That's it !
@@ -46,9 +56,8 @@ async def main() -> None:
     """Main function."""
 
     async with aiohttp.ClientSession() as session:
-        client_api = VeoliaAPI("email", "password", session)
+        client_api = VeoliaAPI("your@email.com", "password", session)
 
-        # e.g Fetch data from 2025-1 to 2025-9
         await client_api.fetch_all_data(date(2025, 1, 1), date(2025, 9, 1))
 
         # Display fetched data
@@ -64,10 +73,9 @@ if __name__ == "__main__":
 
 You can use usage_example.py
 
-```bash
-cp usage_example.py.dist usage_example.py
-python usage_example.py
-```
+## Contributing
+
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on reporting bugs, suggesting features, and submitting pull requests.
 
 ## Credits
 

@@ -1,5 +1,9 @@
 /debug_api.py
+.env
 .idea
 .vscode
 /.pypirc
 veolia_api/__pycache__/
+__pycache__
+.pytest*
+.venv/
