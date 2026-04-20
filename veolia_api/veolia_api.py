@@ -193,8 +193,13 @@ class VeoliaAPI:
         token_data = await response.json(content_type="json")
 
         if response.status != HTTPStatus.OK:
+            error_type = token_data.get("__type", "")
+            if error_type in ("NotAuthorizedException", "UserNotFoundException"):
+                raise VeoliaAPIInvalidCredentialsError(
+                    token_data.get("message", "Invalid credentials"),
+                )
             raise VeoliaAPITokenError(
-                "Token API call error: " + token_data.get("message"),
+                "Token API call error: " + token_data.get("message", "Unknown error"),
             )
 
         authentication_result = token_data.get("AuthenticationResult")
