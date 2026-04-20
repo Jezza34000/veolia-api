@@ -40,7 +40,7 @@ VEOLIA_PORTAL_CLIENTS: dict[str, str] = {
 }
 ```
 
-Also update the portal list in [PORTALS.md](PORTALS.md).
+Also update the **Supported portals** table in `README.md`.
 
 ### How to find your client ID
 
