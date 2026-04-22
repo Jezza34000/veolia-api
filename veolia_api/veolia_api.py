@@ -31,11 +31,11 @@ from .constants import (
     BACKEND_ISTEFR,
     CONCURRENTS_TASKS,
     GET,
+    LOGIN_CLIENT_ID,
     LOGIN_URL,
     POST,
     TIMEOUT,
     TYPE_FRONT,
-    VEOLIA_PORTAL_CLIENTS,
     ConsumptionType,
 )
 from .model import AlertSettings, VeoliaAccountData
@@ -51,17 +51,10 @@ class VeoliaAPI:
         username: str,
         password: str,
         session: aiohttp.ClientSession | None = None,
-        portal_url: str | None = None,
     ) -> None:
         """Initialize the Veolia API client"""
         self.username = username
         self.password = password
-        portal = portal_url or next(iter(VEOLIA_PORTAL_CLIENTS))
-        if portal not in VEOLIA_PORTAL_CLIENTS:
-            raise ValueError(
-                f"Unknown Veolia portal: {portal!r}. Add it to VEOLIA_PORTAL_CLIENTS in portals.py",
-            )
-        self._client_id = VEOLIA_PORTAL_CLIENTS[portal]
         self.account_data = VeoliaAccountData()
         self.session = session or aiohttp.ClientSession(timeout=TIMEOUT)
 
@@ -185,7 +178,7 @@ class VeoliaAPI:
         token_url = f"{LOGIN_URL}"
         _LOGGER.debug("Requesting access token...")
         json_payload = {
-            "ClientId": self._client_id,
+            "ClientId": LOGIN_CLIENT_ID,
             "AuthFlow": "USER_PASSWORD_AUTH",
             "AuthParameters": {"USERNAME": self.username, "PASSWORD": self.password},
         }
@@ -200,8 +193,13 @@ class VeoliaAPI:
         token_data = await response.json(content_type="json")
 
         if response.status != HTTPStatus.OK:
+            error_type = token_data.get("__type", "")
+            if error_type in ("NotAuthorizedException", "UserNotFoundException"):
+                raise VeoliaAPIInvalidCredentialsError(
+                    token_data.get("message", "Invalid credentials"),
+                )
             raise VeoliaAPITokenError(
-                "Token API call error: " + token_data.get("message"),
+                "Token API call error: " + token_data.get("message", "Unknown error"),
             )
 
         authentication_result = token_data.get("AuthenticationResult")

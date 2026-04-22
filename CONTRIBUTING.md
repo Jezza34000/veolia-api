@@ -1,13 +1,13 @@
 # Contributing
 
-Thank you for considering contributing to `veolia-api`! All contributions are welcome: bug reports, portal additions, feature suggestions, and code improvements.
+Thank you for considering contributing to `veolia-api`! All contributions are welcome: bug reports, feature suggestions, and code improvements.
 
 ## Table of contents
 
 - [Reporting a bug](#reporting-a-bug)
 - [Suggesting a feature](#suggesting-a-feature)
-- [Adding a portal](#adding-a-portal)
 - [Development setup](#development-setup)
+- [Testing locally](#testing-locally)
 - [Submitting a pull request](#submitting-a-pull-request)
 - [Code style](#code-style)
 
@@ -28,29 +28,6 @@ Open an issue with the `enhancement` label. Describe the use case and why it wou
 
 ---
 
-## Adding a portal
-
-This is the most common contribution. The only file to edit is **`veolia_api/portals.py`**:
-
-```python
-VEOLIA_PORTAL_CLIENTS: dict[str, str] = {
-    "eau.veolia.fr": "3kghade1fg54739kj8pkbova8j",
-    "eaudetm.monespace.eau.veolia.fr": "19bjc8ldefie683n889iiubjc8",
-    "your-portal.veolia.fr": "your-cognito-client-id",  # <-- add here
-}
-```
-
-Also update the portal list in [PORTALS.md](PORTALS.md).
-
-### How to find your client ID
-
-1. Open your Veolia portal login page in a browser
-2. Open the developer tools (F12) > **Network** tab
-3. Attempt to log in
-4. Look for a request to `cognito-idp.eu-west-3.amazonaws.com` — the `client_id` field in the request body is the value you need
-
----
-
 ## Development setup
 
 **With devbox** (recommended — no Python install required):
@@ -65,6 +42,31 @@ devbox shell
 pip install -r requirements.txt
 pre-commit install
 ```
+
+---
+
+## Testing locally
+
+Copy the credentials template and fill in your details:
+
+```bash
+cp .env.example .env
+```
+
+Edit `.env`:
+
+```
+VEOLIA_EMAIL=your@email.com
+VEOLIA_PASSWORD=your_password
+```
+
+Then run the example script:
+
+```bash
+python usage_example.py
+```
+
+The `.env` file is listed in `.gitignore` and will never be committed.
 
 ---
 
