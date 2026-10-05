@@ -289,13 +289,19 @@ class VeoliaAPI:
             "%Y-%m-%d",
         ).replace(tzinfo=UTC)
         if month is not None:
-            requested_date = datetime(year, month, 1, tzinfo=UTC)
+            if month == 12:
+                period_end = datetime(year, 12, 31, tzinfo=UTC)
+            else:
+                period_end = datetime(year, month + 1, 1, tzinfo=UTC) - timedelta(
+                    days=1,
+                )
         else:
-            requested_date = datetime(year, 1, 1, tzinfo=UTC)
+            period_end = datetime(year, 12, 31, tzinfo=UTC)
 
-        if requested_date < date_debut:
+        if period_end < date_debut:
             _LOGGER.warning(
-                "Requested data for %s-%s is before subscription start date %s. Request aborted.",
+                "Requested data for %s-%s is entirely before subscription "
+                "start date %s. Request aborted.",
                 year,
                 month,
                 self.account_data.date_debut_abonnement,
