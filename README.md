@@ -9,12 +9,13 @@
     <a href="https://github.com/Jezza34000/veolia-api/actions"><img src="https://github.com/Jezza34000/veolia-api/workflows/CI/badge.svg"/></a>
 </p>
 
-Async Python client for the Veolia water portal API (`eau.veolia.fr`).
+Async Python client for the Veolia water portal API (`eau.veolia.fr` and compatible portals).
 
 ## Table of contents
 
 - [Installation](#installation)
 - [Usage](#usage)
+- [Supported portals](#supported-portals)
 - [Contributing](#contributing)
 - [Credits](#credits)
 - [License](#license)
@@ -58,6 +59,9 @@ async def main() -> None:
     async with aiohttp.ClientSession() as session:
         client_api = VeoliaAPI("your@email.com", "password", session)
 
+        # Optional: specify a portal other than the default
+        # client_api = VeoliaAPI("your@email.com", "password", session, portal_url="monespace85.eau.veolia.fr")
+
         await client_api.fetch_all_data(date(2025, 1, 1), date(2025, 9, 1))
 
         # Display fetched data
@@ -72,6 +76,16 @@ if __name__ == "__main__":
 ```
 
 You can use usage_example.py
+
+## Supported portals
+
+| Portal | Region |
+|--------|--------|
+| `eau.veolia.fr` | France (national) |
+| `eaudetm.monespace.eau.veolia.fr` | Eau de Toulouse Métropole |
+| `monespace85.eau.veolia.fr` | Vendée Eau |
+
+Your portal is missing? See [Adding a portal](CONTRIBUTING.md#adding-a-portal) — it only requires editing one file.
 
 ## Contributing
 

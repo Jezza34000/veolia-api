@@ -9,6 +9,7 @@ from datetime import date
 import aiohttp
 from dotenv import load_dotenv
 
+from veolia_api.portals import VEOLIA_PORTAL_CLIENTS
 from veolia_api.veolia_api import VeoliaAPI
 
 logging.basicConfig(
@@ -24,6 +25,7 @@ async def main() -> None:
 
     email = os.getenv("VEOLIA_EMAIL", "")
     password = os.getenv("VEOLIA_PASSWORD", "")
+    portal_url = os.getenv("VEOLIA_PORTAL_URL") or None
 
     if not email or not password:
         logger.error("VEOLIA_EMAIL and VEOLIA_PASSWORD must be set in .env file")
@@ -31,10 +33,11 @@ async def main() -> None:
         sys.exit(1)
 
     logger.info("Starting Veolia API example script")
+    logger.info("Available portals: %s", list(VEOLIA_PORTAL_CLIENTS))
 
     async with aiohttp.ClientSession() as session:
         logger.debug("Creating VeoliaAPI client")
-        client_api = VeoliaAPI(email, password, session)
+        client_api = VeoliaAPI(email, password, session, portal_url=portal_url)
 
         start_date = date(2025, 1, 1)
         end_date = date(2025, 9, 1)
